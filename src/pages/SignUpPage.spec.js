@@ -53,35 +53,8 @@ describe("Sign Up Page", () => {
         });
     });
     describe("Interactions", () => {
-        it("enables the button when password and password repeat fields have same value", () => {
-            render(<SignUpPage />);
-            const passwordInput = screen.getByLabelText("Password");
-            const passwordRepeatInput =
-                screen.getByLabelText("Password Repeat");
-            userEvent.type(passwordInput, "P@ssword");
-            userEvent.type(passwordRepeatInput, "P@ssword");
-            const button = screen.queryByRole("button", { name: "Sign Up" });
-            expect(button).toBeEnabled();
-        });
-        it("disable the button when password and password repeat fields have different values", () => {
-            render(<SignUpPage />);
-            const passwordInput = screen.getByLabelText("Password");
-            const passwordRepeatInput =
-                screen.getByLabelText("Password Repeat");
-            userEvent.type(passwordInput, "P@ssword");
-            userEvent.type(passwordRepeatInput, "P4ssword");
-            const button = screen.queryByRole("button", { name: "Sign Up" });
-            expect(button).toBeDisabled();
-        });
-        it("sends username, email and password to backend after clicking the button", async () => {
-            let requestBody;
-            const server = setupServer(
-                rest.post("/api/1.0/users", async (req, res, ctx) => {
-                    requestBody = await req.json();
-                    return res(ctx.status(200));
-                })
-            );
-            server.listen();
+        let button;
+        const setup = () => {
             render(<SignUpPage />);
             const usernameInput = screen.getByLabelText("Username");
             const emailInput = screen.getByLabelText("E-mail");
@@ -92,7 +65,22 @@ describe("Sign Up Page", () => {
             userEvent.type(emailInput, "user1@mail.com");
             userEvent.type(passwordInput, "P4ssword");
             userEvent.type(passwordRepeatInput, "P4ssword");
-            const button = screen.queryByRole("button", { name: "Sign Up" });
+            button = screen.queryByRole("button", { name: "Sign Up" });
+        };
+        it("enables the button when password and password repeat fields have same value", () => {
+            setup();
+            expect(button).toBeEnabled();
+        });
+        it("sends username, email and password to backend after clicking the button", async () => {
+            let requestBody;
+            const server = setupServer(
+                rest.post("/api/1.0/users", async (req, res, ctx) => {
+                    requestBody = await req.json();
+                    return res(ctx.status(200));
+                })
+            );
+            server.listen();
+            setup();
 
             userEvent.click(button);
 
@@ -103,6 +91,20 @@ describe("Sign Up Page", () => {
                 email: "user1@mail.com",
                 password: "P4ssword",
             });
+        });
+        it("displays spinner after clicking", async () => {
+            const server = setupServer(
+                rest.post("/api/1.0/users", async (req, res, ctx) => {
+                    return res(ctx.status(200));
+                })
+            );
+            server.listen();
+            setup();
+            let spinner = screen.queryByRole("status", { hidden: true });
+            expect(spinner).not.toBeInTheDocument();
+            userEvent.click(button);
+            spinner = screen.getByRole("status", { hidden: true });
+            expect(spinner).toBeInTheDocument();
         });
     });
 });
