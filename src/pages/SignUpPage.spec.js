@@ -1,6 +1,9 @@
 import SignUpPage from "./SignUpPage";
 import { screen, render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { setupServer } from "msw/node";
+import { rest } from "msw";
+
 describe("Sign Up Page", () => {
     describe("Layout", () => {
         it("has header", () => {
@@ -53,7 +56,8 @@ describe("Sign Up Page", () => {
         it("enables the button when password and password repeat fields have same value", () => {
             render(<SignUpPage />);
             const passwordInput = screen.getByLabelText("Password");
-            const passwordRepeatInput = screen.getByLabelText("Password Repeat");
+            const passwordRepeatInput =
+                screen.getByLabelText("Password Repeat");
             userEvent.type(passwordInput, "P@ssword");
             userEvent.type(passwordRepeatInput, "P@ssword");
             const button = screen.queryByRole("button", { name: "Sign Up" });
@@ -62,11 +66,43 @@ describe("Sign Up Page", () => {
         it("disable the button when password and password repeat fields have different values", () => {
             render(<SignUpPage />);
             const passwordInput = screen.getByLabelText("Password");
-            const passwordRepeatInput = screen.getByLabelText("Password Repeat");
+            const passwordRepeatInput =
+                screen.getByLabelText("Password Repeat");
             userEvent.type(passwordInput, "P@ssword");
             userEvent.type(passwordRepeatInput, "P4ssword");
             const button = screen.queryByRole("button", { name: "Sign Up" });
             expect(button).toBeDisabled();
+        });
+        it("sends username, email and password to backend after clicking the button", async () => {
+            let requestBody;
+            const server = setupServer(
+                rest.post("/api/1.0/users", async (req, res, ctx) => {
+                    requestBody = await req.json();
+                    return res(ctx.status(200));
+                })
+            );
+            server.listen();
+            render(<SignUpPage />);
+            const usernameInput = screen.getByLabelText("Username");
+            const emailInput = screen.getByLabelText("E-mail");
+            const passwordInput = screen.getByLabelText("Password");
+            const passwordRepeatInput =
+                screen.getByLabelText("Password Repeat");
+            userEvent.type(usernameInput, "user1");
+            userEvent.type(emailInput, "user1@mail.com");
+            userEvent.type(passwordInput, "P4ssword");
+            userEvent.type(passwordRepeatInput, "P4ssword");
+            const button = screen.queryByRole("button", { name: "Sign Up" });
+
+            userEvent.click(button);
+
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            expect(requestBody).toEqual({
+                username: "user1",
+                email: "user1@mail.com",
+                password: "P4ssword",
+            });
         });
     });
 });
